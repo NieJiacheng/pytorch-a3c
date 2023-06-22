@@ -43,26 +43,36 @@ class TrainProcess(mp.Process):
         while self.i_episode.value < self.config.training_episode:
             state_buffer = [self.env.reset(seed=0)[0]]
             reward_buffer = []
+
+            # catch the original log with grad information.
+            # list here didn't work since transfer list into tensor will drop teh grad information.
             log_prob_tensor_buffer = tensor([], device=self.device)
+
             is_done = False
             episode_reward = 0
 
             self.sync_network(self.ActorCritic.actor, self.global_actor_critic.actor)
             self.sync_network(self.ActorCritic.critic, self.global_actor_critic.critic)
+
             while not is_done:
                 action, log_prob = self.ActorCritic.get_action(tensor(state_buffer[-1], device=self.device))
+
+                # log_prob: tensor(x) ----> tensor([x])
                 log_prob_tensor_buffer = cat((log_prob_tensor_buffer, log_prob.unsqueeze(dim=0)))
+
                 state_next, pre_state_reward, is_done, _, _ = self.env.step(action.cpu().numpy())
                 state_buffer.append(state_next)
                 reward_buffer.append(pre_state_reward)
                 episode_reward += pre_state_reward
             self.i_episode.value += 1
+
             with self.lock_wandb:
                 self.run_handle.log({"episode_reward": episode_reward}, step=self.i_episode.value)
                 print(f"episode:{self.i_episode.value} ep_r:{episode_reward}")
 
             self.ActorCritic.actor_optim.zero_grad()
             self.ActorCritic.critic_optim.zero_grad()
+
             self.ActorCritic.learn_for_global(
                 state_buffer,
                 is_done,
@@ -73,8 +83,9 @@ class TrainProcess(mp.Process):
             )
 
 
-
 if __name__ == "__main__":
+    # for server training
+    # mp.set_start_method("spawn")
     def query_environment(name):
         env = gym.make(name)
         spec = gym.spec(name)
@@ -105,14 +116,18 @@ if __name__ == "__main__":
     set_seed(seed)
 
     jobs = input("the number of processes is : ")
+
     processes = []
+
     device_name = input("device : ")
     Device = device(device_name)
 
     GlobalActorCritic = Actor_Critic(env, config.gamma, config.lr_a, config.lr_c, 'cpu')
     GlobalActorCritic.share_network()
+
     I_episode = mp.Value(c_int, 0)
     Lock_wandb = mp.RLock()
+
     for job_id in range(int(jobs)):
         processes.append(
             TrainProcess(
@@ -130,6 +145,7 @@ if __name__ == "__main__":
         p.start()
     for p in processes:
         p.join()
+
     Run_handle.finish()
 
 

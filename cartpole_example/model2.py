@@ -96,36 +96,88 @@ class Actor_Critic(object):
             entropy_coef,
             g_actor_critic,
     ):
+        # terminal of trajectory
+
         end = s_buffer.pop()
+
+        # buffer_of_state:list(tensor) -------> 1-D CUDA tensor.
+        # It's safe since the state information didn't contain any gradient information of network.
+
         s_buffer = torch.tensor(s_buffer, device=self.device)
 
+        # state value of the trajectory.
+        # squeeze() is used to make it in a harmonious form.
+
         v = self.critic(s_buffer).squeeze()
+
         # reduction matrix
+        '''
+        [1,  1/2,   1/4] × [1,   2,   4]
+        
+        =  [[1 ,    2,   4]            
+            [1/2,   1,   2]  
+            [1/4, 1/2,   1]]
+                  
+        -> [[1 ,    0,   0]            
+            [1/2,   1,   0]  
+            [1/4, 1/2,   1]]
+        '''
+
         r_m = torch.tril(
             torch.outer(
                 torch.tensor(self.gamma, device=self.device) ** torch.arange(0, len(r_buffer), step=1, device=self.device),
                 torch.tensor(1. / self.gamma, device=self.device) ** torch.arange(0, len(r_buffer), step=1, device=self.device)
             )
         )
+
+        # sum of reward with reduction
+        '''
+                                  [[1 ,    0,   0]            
+          [r1, r2 , r3]      *     [1/2,   1,   0]          = [r1 + r2 / 2 + r3 / 4, r2 + r3 / 2, r3]
+                                   [1/4, 1/2,   1]].T.T
+        '''
+
         q = torch.mv(
             torch.transpose(r_m, 0, 1), torch.tensor(r_buffer, dtype=torch.float32, device=self.device)
         )
+
+        # r1 + r2 / 2 + r3 / 4 + V(terminal) / 8
+
         if not done:
             q += self.critic(torch.tensor(end, device=self.device)).squeeze() * self.gamma ** len(r_buffer)
+
+        # loss of critic : advantage ** 2
+
         critic_loss = self.loss(q, v)
+
+        # advantage
+
         advantage = q - v
+
+        # entropy
+
         entropy = -torch.sum(
             self.actor(s_buffer) * torch.log(self.actor(s_buffer))
         )
+
+        # loss of actor:  log(pi) * advantage_ + entropy * coefficient
+
         actor_loss = -torch.sum(
             log_prob_tensor_buffer * advantage.detach()
         ) - entropy_coef * entropy
+
         actor_loss.backward()
         critic_loss.backward()
+
+        # clip gradient to get rid of grad_explosion
         torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=4)
         torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=8)
+
+        # migrate gradient from local network to global network after set grad of global network to "zero"
+
         self.migrate_grad(self.actor, g_actor_critic.actor)
         self.migrate_grad(self.critic, g_actor_critic.critic)
+
         g_actor_critic.actor_optim.step()
         g_actor_critic.critic_optim.step()
 
