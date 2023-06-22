@@ -6,7 +6,7 @@ This implementation is inspired by [Universe Starter Agent](https://github.com/o
 
 The test.py in the example folder is useless, just for debugging.
 
-# According to my experience, if the example is trained on the server , "torch.multiprocessing.set_start_method("spawn")" should be add at the top of the main.py. 
+According to my experience, if the example is trained on the server , "torch.multiprocessing.set_start_method("spawn")" should be add at the top of the main.py. 
 
 
 
