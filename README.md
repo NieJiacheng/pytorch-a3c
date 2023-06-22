@@ -4,5 +4,9 @@ This is a PyTorch implementation of Asynchronous Advantage Actor Critic (A3C) an
 
 This implementation is inspired by [Universe Starter Agent](https://github.com/openai/universe-starter-agent) and ikostrikov's implementation of A3C(https://github.com/ikostrikov/pytorch-a3c/tree/master).
 
-According to my experience, if the example is trained on the server , "torch.multiprocessing.set_start_method("spawn")" should be add at the top of the main.py. 
+The test.py in the example folder is useless, just for debugging.
+
+# According to my experience, if the example is trained on the server , "torch.multiprocessing.set_start_method("spawn")" should be add at the top of the main.py. 
+
+
 
