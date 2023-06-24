@@ -169,7 +169,6 @@ class Actor_Critic(object):
         actor_loss.backward()
         critic_loss.backward()
 
-        # clip gradient to get rid of grad_explosion
         torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=4)
         torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=8)
 

@@ -6,6 +6,7 @@ from torch import device, tensor, cat, manual_seed, cuda
 from ctypes import c_int
 from config import Config
 import numpy.random as np_random
+import time
 
 
 def set_seed(seed):
@@ -54,7 +55,9 @@ class TrainProcess(mp.Process):
             self.sync_network(self.ActorCritic.actor, self.global_actor_critic.actor)
             self.sync_network(self.ActorCritic.critic, self.global_actor_critic.critic)
 
-            while not is_done:
+            step = 0
+
+            while not is_done and step <= self.config.max_step:
                 action, log_prob = self.ActorCritic.get_action(tensor(state_buffer[-1], device=self.device))
 
                 # log_prob: tensor(x) ----> tensor([x])
@@ -64,6 +67,7 @@ class TrainProcess(mp.Process):
                 state_buffer.append(state_next)
                 reward_buffer.append(pre_state_reward)
                 episode_reward += pre_state_reward
+                step += 1
             self.i_episode.value += 1
 
             with self.lock_wandb:
@@ -84,6 +88,7 @@ class TrainProcess(mp.Process):
 
 
 if __name__ == "__main__":
+    time1 = time.time()
     # for server training
     # mp.set_start_method("spawn")
     def query_environment(name):
@@ -102,18 +107,28 @@ if __name__ == "__main__":
         lr_a=2e-4,
         lr_c=2e-5,
         training_episode=2000,
-        entropy_coef=1e-3
+        entropy_coef=1e-3,
+        max_step=300
     )
-
-    Run_handle = wandb.init(
-        project="2023_6_22_cartpole_parallel",
-        config={"episode_num": config.training_episode, "entropy_coefficient": config.entropy_coef}
-    )
-
-    env = query_environment('CartPole-v1')
 
     seed = int(input("the seed of the experiment is : "))
     set_seed(seed)
+
+    Run_handle = wandb.init(
+        project="2023_6_23_cartpole_parallel",
+        config={
+            "seed": seed,
+            "episode_num": config.training_episode,
+            "entropy_coefficient": config.entropy_coef,
+            "gamma": config.gamma,
+            'lr_a': config.lr_a,
+            'lr_c': config.lr_c,
+            'max_step': config.max_step
+
+        }
+    )
+
+    env = query_environment('CartPole-v1')
 
     jobs = input("the number of processes is : ")
 
@@ -145,6 +160,11 @@ if __name__ == "__main__":
         p.start()
     for p in processes:
         p.join()
+
+    time2 = time.time()
+    run_time = time2 - time1
+
+    Run_handle.log({'running time': run_time / 60})
 
     Run_handle.finish()
 
