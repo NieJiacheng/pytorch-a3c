@@ -54,7 +54,7 @@ In each process:
 
 ## result on cartpole
 ### training and time cost
-![A3C(jobs=3)](D:\OneDrive-CUHK-Shenzhen\桌面\p.png )
+![A3C(jobs=3)](A3C.png )
 
-![A2C](D:\OneDrive-CUHK-Shenzhen\桌面\np.png)
+![A2C](A2C.png)
 
