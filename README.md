@@ -54,7 +54,10 @@ In each process:
 
 ## result on cartpole
 ### training and time cost
-![A3C(jobs=3)](cartpole_example/result/A3C.jpg)
 
-![A2C](cartpole_example/result/A3C.jpg)
+#### A3C(jobs=3)
+![A3C(jobs=3)](cartpole_example/result/A3C.jpg "A3C(jobs=3)")
+
+#### A2C
+![A2C](cartpole_example/result/A2C.jpg "A2C")
 
