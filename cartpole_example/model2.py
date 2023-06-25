@@ -184,3 +184,11 @@ class Actor_Critic(object):
         self.actor.share_memory()
         self.critic.share_memory()
 
+
+if __name__ == "__main__":
+    from torchviz import make_dot
+    a = Actor(4, 4)
+    t = torch.tensor([1., 2., 1., .5])
+    g = make_dot(a(t), params=dict(list(a.named_parameters())), show_attrs=True)
+    g.render("g3", "D:\OneDrive - CUHK-Shenzhen\桌面", view=True)
+
