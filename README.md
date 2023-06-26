@@ -46,7 +46,7 @@ In each process:
 3. i don't known if `objective.backward()` works with shared network/variables.
 4. you can also used a shared optimizer like https://github.com/ikostrikov/pytorch-a3c/blob/master/my_optim.py
 ### episode infromation
-1. the action(log\pi) buffer should be the original tensor outputed by the actor networt since it contains grad information. to make it, use `torch.cat` to catch the action(log\pi). no such limit of state and reward(from environment) buffer.
+1. the action($\log\pi$) buffer should be the original tensor outputed by the actor networt since it contains grad information. to make it, use `torch.cat` to catch the action($\log\pi$). no such limit of state and reward(from environment) buffer.
 ### lock 
 1. a lock may be needed when print reward/episode or use wandb to log data.
 ### wandb
