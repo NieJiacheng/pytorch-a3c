@@ -18,11 +18,20 @@ def [share_value] i_episode
 
 global_agent.network.share_memory()
 for i in range(jobs):
-    create_process(local_env, local_agents, shared_network)
+    create_process(env_generator, agent_generator, i_episode(shared), global_agent.network(shared), config, locks)
 In each process:
-    while i_episode(shared) < training_epiosde:
+    with agent_generator:
+        def [agent class] local_agent
+    with env_generator:
+        def local_env
+        local_env.reset()
+    while i_episode(shared) < config.training_epiosde:
         network_parameters_synchronization(shared_network, local_agent.network) ---> None
         agent.run_an_episode(local_env) ---> buffer
+        with lock1:
+            log_data_and_plot(buffer)
+        with lock2:
+            i_episode.value += 1
         sample_a_batch(buffer) ---> batch
         compute_grad(batch) ---> grad
         update_shared_network(grad) ---> None
@@ -49,6 +58,7 @@ In each process:
 1. the action($\log\pi$) buffer should be the original tensor outputed by the actor networt since it contains grad information. to make it, use `torch.cat` to catch the action($\log\pi$). no such limit of state and reward(from environment) buffer.
 ### lock 
 1. a lock may be needed when print reward/episode or use wandb to log data.
+2. according to [ikostrikov's A3C code](https://github.com/ikostrikov/pytorch-a3c/blob/master/train.py), a lock is used when updating the shared counter.
 ### wandb
 1. all the processs use the same wandb run_handle
 
