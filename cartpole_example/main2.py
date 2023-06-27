@@ -25,6 +25,7 @@ class TrainProcess(mp.Process):
             global_actor_critic,
             i_episode,
             lock_wandb,
+            lock_counter,
             run_handle
     ):
         super().__init__(name="process_%d" % p_id)
@@ -34,6 +35,7 @@ class TrainProcess(mp.Process):
         self.global_actor_critic = global_actor_critic
         self.i_episode = i_episode
         self.lock_wandb = lock_wandb
+        self.lock_counter = lock_counter
         self.run_handle = run_handle
         self.device = device
 
@@ -68,7 +70,8 @@ class TrainProcess(mp.Process):
                 reward_buffer.append(pre_state_reward)
                 episode_reward += pre_state_reward
                 step += 1
-            self.i_episode.value += 1
+            with self.lock_counter:
+                self.i_episode.value += 1
 
             with self.lock_wandb:
                 self.run_handle.log({"episode_reward": episode_reward}, step=self.i_episode.value)
@@ -89,8 +92,8 @@ class TrainProcess(mp.Process):
 
 if __name__ == "__main__":
     time1 = time.time()
-    # for server training
-    # mp.set_start_method("spawn")
+    # mp.set_start_method("spawn") # for server training
+
     def query_environment(name):
         env = gym.make(name)
         spec = gym.spec(name)
@@ -142,6 +145,7 @@ if __name__ == "__main__":
 
     I_episode = mp.Value(c_int, 0)
     Lock_wandb = mp.RLock()
+    Lock_counter = mp.RLock()
 
     for job_id in range(int(jobs)):
         processes.append(
@@ -153,6 +157,7 @@ if __name__ == "__main__":
                 GlobalActorCritic,
                 I_episode,
                 Lock_wandb,
+                Lock_counter,
                 Run_handle
             )
         )
