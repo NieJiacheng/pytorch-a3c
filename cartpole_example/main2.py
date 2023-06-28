@@ -26,6 +26,8 @@ class TrainProcess(mp.Process):
             i_episode,
             lock_wandb,
             lock_counter,
+            lock_shared_actor,
+            lock_shared_critic,
             run_handle
     ):
         super().__init__(name="process_%d" % p_id)
@@ -36,6 +38,8 @@ class TrainProcess(mp.Process):
         self.i_episode = i_episode
         self.lock_wandb = lock_wandb
         self.lock_counter = lock_counter
+        self.lock_shared_actor = lock_shared_actor
+        self.lock_shared_critic = lock_shared_critic
         self.run_handle = run_handle
         self.device = device
 
@@ -54,8 +58,10 @@ class TrainProcess(mp.Process):
             is_done = False
             episode_reward = 0
 
-            self.sync_network(self.ActorCritic.actor, self.global_actor_critic.actor)
-            self.sync_network(self.ActorCritic.critic, self.global_actor_critic.critic)
+            with self.lock_shared_actor:
+                self.sync_network(self.ActorCritic.actor, self.global_actor_critic.actor)
+            with self.lock_shared_critic:
+                self.sync_network(self.ActorCritic.critic, self.global_actor_critic.critic)
 
             step = 0
 
@@ -87,12 +93,14 @@ class TrainProcess(mp.Process):
                 log_prob_tensor_buffer,
                 self.config.entropy_coef,
                 self.global_actor_critic,
+                self.lock_shared_actor,
+                self.lock_shared_critic
             )
 
 
 if __name__ == "__main__":
     time1 = time.time()
-    # mp.set_start_method("spawn") # for server training
+    mp.set_start_method("spawn")     # especially for server training
 
     def query_environment(name):
         env = gym.make(name)
@@ -118,7 +126,7 @@ if __name__ == "__main__":
     set_seed(seed)
 
     Run_handle = wandb.init(
-        project="2023_6_23_cartpole_parallel",
+        project="2023_6_28_cartpole_parallel",
         config={
             "seed": seed,
             "episode_num": config.training_episode,
@@ -146,6 +154,8 @@ if __name__ == "__main__":
     I_episode = mp.Value(c_int, 0)
     Lock_wandb = mp.RLock()
     Lock_counter = mp.RLock()
+    Lock_shared_actor = mp.RLock()
+    Lock_shared_critic = mp.RLock()
 
     for job_id in range(int(jobs)):
         processes.append(
@@ -158,6 +168,8 @@ if __name__ == "__main__":
                 I_episode,
                 Lock_wandb,
                 Lock_counter,
+                Lock_shared_actor,
+                Lock_shared_critic,
                 Run_handle
             )
         )

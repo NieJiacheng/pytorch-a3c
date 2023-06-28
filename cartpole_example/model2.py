@@ -95,6 +95,8 @@ class Actor_Critic(object):
             log_prob_tensor_buffer,
             entropy_coef,
             g_actor_critic,
+            lock_shared_actor,
+            lock_shared_critic
     ):
         # terminal of trajectory
 
@@ -174,11 +176,15 @@ class Actor_Critic(object):
 
         # migrate gradient from local network to global network after set grad of global network to "zero"
 
-        self.migrate_grad(self.actor, g_actor_critic.actor)
-        self.migrate_grad(self.critic, g_actor_critic.critic)
+        with lock_shared_actor:
+            self.migrate_grad(self.actor, g_actor_critic.actor)
+            g_actor_critic.actor_optim.step()
 
-        g_actor_critic.actor_optim.step()
-        g_actor_critic.critic_optim.step()
+        with lock_shared_critic:
+            self.migrate_grad(self.critic, g_actor_critic.critic)
+            g_actor_critic.critic_optim.step()
+
+
 
     def share_network(self):
         self.actor.share_memory()
